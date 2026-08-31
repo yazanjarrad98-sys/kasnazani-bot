@@ -6,9 +6,9 @@ from threading import Thread
 from flask import Flask
 import telebot
 from pypdf import PdfReader
-from google import genai
+import google.generativeai as genai
 
-# 1. خادم Flask لإبقاء البوت نشطاً على Render
+# 1. خادم Flask
 app = Flask(__name__)
 
 @app.route('/')
@@ -26,18 +26,20 @@ def keep_alive():
 
 keep_alive()
 
-# 2. المفاتيح وإعدادات النظام
+# 2. البيانات والمفاتيح (ضع مفتاحك هنا مباشرة)
 TOKEN = os.environ.get("BOT_TOKEN","8934001695:AAEdzd-JNyasVh7RTpk4eniJ2HFwNx0K-wg")
-# ضع مفتاح Gemini الحقيقي هنا مكان النص المكتوب بين التنصيص
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY","AQ.Ab8RN6JWEMuS1iUQeN3yRYCz-vBcj2P8EIzL6gEqsVvIZxQXrg")
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY","AQ.Ab8RN6JWEMuS1iUQeN3yRYCz-vBcj2P8EIzL6gEqsVvIZxQXrg")
+
+# تهيئة المفتاح
+genai.configure(api_key=GEMINI_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 ADMIN_ID = 8032030029
 DATA_FILE = "library.json"
 
 bot = telebot.TeleBot(TOKEN)
-ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
-# 3. إدارة الملفات والبيانات
+# 3. حفظ وقراءة البيانات
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -53,30 +55,10 @@ def save_data(data):
 
 library = load_data()
 
-# 4. التواصل مع الذكاء الاصطناعي
-def ask_gemini_with_retry(prompt, retries=3, delay=5):
-    for attempt in range(retries):
-        try:
-            response = ai_client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=prompt,
-            )
-            return response.text
-        except Exception as e:
-            if attempt < retries - 1:
-                time.sleep(delay)
-                continue
-            raise e
-
-# 5. الأوامر واستقبال الملفات
+# 4. الأوامر ورفع الملفات
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    welcome_text = (
-        "أهلاً بك في بوت المكتبة والمستندات!\n\n"
-        "يمكنك إرسال أي سؤال وسأجيبك بناءً على الكتب والمستندات المتاحة.\n"
-        "كما يمكنك إرسال ملفات PDF لإضافتها إلى المكتبة."
-    )
-    bot.reply_to(message, welcome_text)
+    bot.reply_to(message, "أهلاً بك في بوت المكتبة والمستندات!\nأرسل ملفات PDF للرفع، أو اطرح أي سؤال للإجابة عنه.")
 
 @bot.message_handler(content_types=['document'])
 def handle_document(message):
@@ -89,7 +71,7 @@ def handle_document(message):
         bot.reply_to(message, "الرجاء إرسال ملف بصيغة PDF فقط.")
         return
 
-    msg = bot.reply_to(message, "جاري تحميل وقراءة الملف...")
+    msg = bot.reply_to(message, "جاري قراءة وتخزين الكتاب...")
     try:
         file_info = bot.get_file(message.document.file_id)
         downloaded_file = bot.download_file(file_info.file_path)
@@ -108,22 +90,22 @@ def handle_document(message):
         os.remove(temp_filename)
 
         if not chunks:
-            bot.edit_message_text("لم يتم العثور على نصوص قابلة للقراءة في الملف.", chat_id=message.chat.id, message_id=msg.message_id)
+            bot.edit_message_text("لم يتم العثور على نصوص قابلة للقراءة.", chat_id=message.chat.id, message_id=msg.message_id)
             return
 
         book_key = file_name.replace(".pdf", "")
         library[book_key] = chunks
         save_data(library)
 
-        bot.edit_message_text(f"تمت إضافة الكتاب '{book_key}' بنجاح! إجمالي الصفحات: {len(chunks)}", chat_id=message.chat.id, message_id=msg.message_id)
+        bot.edit_message_text(f"تمت إضافة الكتاب '{book_key}' بنجاح! الإجمالي: {len(chunks)} صفحة.", chat_id=message.chat.id, message_id=msg.message_id)
     except Exception as e:
-        bot.edit_message_text(f"حدث خطأ أثناء معالجة الملف: {e}", chat_id=message.chat.id, message_id=msg.message_id)
+        bot.edit_message_text(f"خطأ في المعالجة: {e}", chat_id=message.chat.id, message_id=msg.message_id)
 
 @bot.message_handler(func=lambda message: True)
 def handle_query(message):
     query = message.text
     if not library:
-        bot.reply_to(message, "المكتبة فارغة حالياً. يرجى رفع بعض الكتب أولاً.")
+        bot.reply_to(message, "المكتبة فارغة حالياً.")
         return
 
     bot.send_chat_action(message.chat.id, 'typing')
@@ -134,23 +116,14 @@ def handle_query(message):
         for chunk in chunks[:15]:
             context_str += f"[صفحة {chunk['page']}]: {chunk['text'][:300]}...\n"
 
-    prompt = f"""
-أنت مساعد ذكي يجيب على أسئلة المستخدمين بدقة بناءً على كتب ومستندات المكتبة.
-استخرج الإجابة المباشرة مع ذكر اسم الكتاب ورقم الصفحة إن أمكن.
+    prompt = f"بناءً على المستندات التالية:\n{context_str}\n\nأجب عن السؤال التالي بدقة: {query}"
 
-المستندات المتاحة:
-{context_str}
-
-سؤال المستخدم:
-{query}
-"""
     try:
-        reply = ask_gemini_with_retry(prompt)
-        bot.reply_to(message, reply)
+        response = model.generate_content(prompt)
+        bot.reply_to(message, response.text)
     except Exception as e:
-        bot.reply_to(message, f"حدث خطأ في توليد الإجابة: {e}")
+        bot.reply_to(message, f"خطأ في توليد الإجابة: {e}")
 
 if __name__ == "__main__":
-    print("جاري تشغيل البوت...")
     bot.remove_webhook()
     bot.infinity_polling()
