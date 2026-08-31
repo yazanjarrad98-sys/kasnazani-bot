@@ -6,7 +6,7 @@ from threading import Thread
 from flask import Flask
 import telebot
 from pypdf import PdfReader
-from google import genai
+import google.generativeai as genai
 
 # 1. خادم Flask لإبقاء البوت نشطاً على Render
 app = Flask(__name__)
