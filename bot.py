@@ -9,10 +9,8 @@ from pypdf import PdfReader
 from google import genai
 from google.genai.errors import APIError
 
-# ==========================================
-# 1. خادم ويب وهمي لإبقاء البوت شغالاً على Render
-# ==========================================
-app = Flask(_name_)
+# 1. خادم Flask لإبقاء البوت نشطاً على Render
+app = Flask(__name__)
 
 @app.route('/')
 def home():
@@ -29,12 +27,9 @@ def keep_alive():
 
 keep_alive()
 
-# ==========================================
-# 2. الإعدادات والمفاتيح
-# ==========================================
-# ضع التوكن ومفتاح API الخاص بك هنا بين التنصيص
-TOKEN = os.environ.get("BOT_TOKEN","8934001695:AAEdzd-JNyasVh7RTpk4eniJ2HFwNx0K-wg")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6JWEMuS1iUQeN3yRYCz-vBcj2P8EIzL6gEqsVvIZxQXrg")
+# 2. المفاتيح وإعدادات النظام
+TOKEN = os.environ.get("BOT_TOKEN", "ضع_توكن_التلغرام_هنا")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "ضع_مفتاح_جيميني_هنا")
 
 ADMIN_ID = 8032030029
 DATA_FILE = "library.json"
@@ -42,9 +37,7 @@ DATA_FILE = "library.json"
 bot = telebot.TeleBot(TOKEN)
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
-# ==========================================
-# 3. إدارة بيانات المكتبة
-# ==========================================
+# 3. إدارة الملفات والبيانات
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -60,14 +53,12 @@ def save_data(data):
 
 library = load_data()
 
-# ==========================================
-# 4. دالة الاستجابة مع الذكاء الاصطناعي
-# ==========================================
+# 4. التواصل مع الذكاء الاصطناعي
 def ask_gemini_with_retry(prompt, retries=3, delay=5):
     for attempt in range(retries):
         try:
             response = ai_client.models.generate_content(
-                model='gemini-3.6-flash',
+                model='gemini-2.5-flash',
                 contents=prompt,
             )
             return response.text
@@ -77,9 +68,7 @@ def ask_gemini_with_retry(prompt, retries=3, delay=5):
                 continue
             raise e
 
-# ==========================================
-# 5. معالجة الأوامر والرسائل
-# ==========================================
+# 5. الأوامر واستقبال الملفات
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     welcome_text = (
@@ -142,7 +131,7 @@ def handle_query(message):
     context_str = ""
     for book_name, chunks in library.items():
         context_str += f"\n--- الكتاب: {book_name} ---\n"
-        for chunk in chunks[:15]:  # دمج أجزاء من المحتوى للبحث
+        for chunk in chunks[:15]:
             context_str += f"[صفحة {chunk['page']}]: {chunk['text'][:300]}...\n"
 
     prompt = f"""
@@ -161,6 +150,7 @@ def handle_query(message):
     except Exception as e:
         bot.reply_to(message, f"حدث خطأ في توليد الإجابة: {e}")
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     print("جاري تشغيل البوت...")
-    bot.infinity_polling(skip_pending_updates=True)
+    bot.remove_webhook()
+    bot.infinity_polling()
