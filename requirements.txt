@@ -1,4 +1,4 @@
 pyTelegramBotAPI
-google-genai
 pypdf
 Flask
+google-generativeai
