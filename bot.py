@@ -7,7 +7,6 @@ from flask import Flask
 import telebot
 from pypdf import PdfReader
 from google import genai
-from google.genai.errors import APIError
 
 # 1. خادم Flask لإبقاء البوت نشطاً على Render
 app = Flask(__name__)
@@ -28,8 +27,9 @@ def keep_alive():
 keep_alive()
 
 # 2. المفاتيح وإعدادات النظام
-TOKEN = os.environ.get("BOT_TOKEN", "8934001695:AAEdzd-JNyasVh7RTpk4eniJ2HFwNx0K-wg")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6JWEMuS1iUQeN3yRYCz-vBcj2P8EIzL6gEqsVvIZxQXrg")
+TOKEN = os.environ.get("BOT_TOKEN","8934001695:AAEdzd-JNyasVh7RTpk4eniJ2HFwNx0K-wg")
+# ضع مفتاح Gemini الحقيقي هنا مكان النص المكتوب بين التنصيص
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY","AQ.Ab8RN6JWEMuS1iUQeN3yRYCz-vBcj2P8EIzL6gEqsVvIZxQXrg")
 
 ADMIN_ID = 8032030029
 DATA_FILE = "library.json"
@@ -62,8 +62,8 @@ def ask_gemini_with_retry(prompt, retries=3, delay=5):
                 contents=prompt,
             )
             return response.text
-        except APIError as e:
-            if e.code == 503 and attempt < retries - 1:
+        except Exception as e:
+            if attempt < retries - 1:
                 time.sleep(delay)
                 continue
             raise e
