@@ -1,5 +1,4 @@
 import os
-import re
 import json
 import time
 from threading import Thread
@@ -9,7 +8,7 @@ from pypdf import PdfReader
 import google.generativeai as genai
 
 # 1. خادم Flask لإبقاء البوت نشطاً على Render
-app = Flask(_name_)
+app = Flask(__name__)
 
 @app.route('/')
 def home():
@@ -17,7 +16,7 @@ def home():
 
 def run():
     port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, threaded=True)
 
 def keep_alive():
     t = Thread(target=run)
@@ -27,15 +26,16 @@ def keep_alive():
 keep_alive()
 
 # 2. المفاتيح وإعدادات النظام
-TOKEN = os.environ.get("BOT_TOKEN", "8934001695:AAEdzd-JNyasVh7RTpk4eniJ2HFwNx0K-wg")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6JWEMuS1iUQeN3yRYCz-vBcj2P8EIzL6gEqsVvIZxQXrg")
+TOKEN = os.environ.get("8934001695:AAEdzd-JNyasVh7RTpk4eniJ2HFwNx0K-wg")
+GEMINI_API_KEY = os.environ.get("AQ.Ab8RN6JWEMuS1iUQeN3yRYCz-vBcj2P8EIzL6gEqsVvIZxQXrg")
 
 ADMIN_ID = 8032030029
 DATA_FILE = "library.json"
 
 bot = telebot.TeleBot(TOKEN)
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+
+model = genai.GenerativeModel('gemini-3.6-flash')
 
 # 3. إدارة الملفات والبيانات
 def load_data():
@@ -149,5 +149,9 @@ def handle_query(message):
 
 if _name_ == "_main_":
     print("جاري تشغيل البوت...")
-    bot.remove_webhook()
-    bot.infinity_polling()
+    try:
+        bot.remove_webhook()
+        time.sleep(1)
+    except Exception:
+        pass
+    bot.infinity_polling(timeout=10, long_polling_timeout=5)
