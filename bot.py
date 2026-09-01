@@ -7,25 +7,18 @@ import telebot
 from pypdf import PdfReader
 import google.generativeai as genai
 
-# 1. خادم Flask لإبقاء البوت نشطاً على Render
+# 1. خادم Flask
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Kasnazani Bot is running 24/7!"
+    return "Kasnazani Bot is running!"
 
 def run():
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
-def keep_alive():
-    t = Thread(target=run)
-    t.daemon = True
-    t.start()
-
-keep_alive()
-
-# 2. المفاتيح وإعدادات النظام
+# 2. إعدادات التليجرام وجوجل
 TOKEN = os.environ.get("8934001695:AAEdzd-JNyasVh7RTpk4eniJ2HFwNx0K-wg")
 GEMINI_API_KEY = os.environ.get("AQ.Ab8RN6JWEMuS1iUQeN3yRYCz-vBcj2P8EIzL6gEqsVvIZxQXrg")
 
@@ -34,10 +27,9 @@ DATA_FILE = "library.json"
 
 bot = telebot.TeleBot(TOKEN)
 genai.configure(api_key=GEMINI_API_KEY)
-
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# 3. إدارة الملفات والبيانات
+# 3. إدارة البيانات
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -53,19 +45,7 @@ def save_data(data):
 
 library = load_data()
 
-# 4. التواصل مع الذكاء الاصطناعي
-def ask_gemini_with_retry(prompt, retries=3, delay=5):
-    for attempt in range(retries):
-        try:
-            response = model.generate_content(prompt)
-            return response.text
-        except Exception as e:
-            if attempt < retries - 1:
-                time.sleep(delay)
-                continue
-            raise e
-
-# 5. الأوامر واستقبال الملفات
+# 4. معالجة الرسائل
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     welcome_text = (
@@ -142,16 +122,22 @@ def handle_query(message):
 {query}
 """
     try:
-        reply = ask_gemini_with_retry(prompt)
-        bot.reply_to(message, reply)
+        response = model.generate_content(prompt)
+        bot.reply_to(message, response.text)
     except Exception as e:
         bot.reply_to(message, f"حدث خطأ في توليد الإجابة: {e}")
 
-if _name_ == "_main_":
-    print("جاري تشغيل البوت...")
+# 5. تشغيل السيرفر والبوت في مسارات مستقلة
+if __name__ == "__main__":
+    t = Thread(target=run)
+    t.daemon = True
+    t.start()
+    
+    time.sleep(1)
     try:
         bot.remove_webhook()
-        time.sleep(1)
     except Exception:
         pass
-    bot.infinity_polling()
+        
+    print("البوت يعمل الآن ومستعد لاستقبال الرسائل...")
+    bot.infinity_polling(timeout=10, long_polling_timeout=5)
