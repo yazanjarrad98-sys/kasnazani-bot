@@ -5,20 +5,20 @@ from threading import Thread
 from flask import Flask
 import telebot
 from pypdf import PdfReader
-from google import genai
+import google.generativeai as genai
 
 # 1. خادم Flask لإبقاء الخدمة نشطة
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Kasnazani Bot is running!"
+    return "Kasnazani Bot is running 24/7!"
 
 def run():
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
-# 2. إعداد مفاتيح التلغرام وجوجل
+# 2. قراءة متغيرات البيئة
 TOKEN = os.environ.get("8934001695:AAEdzd-JNyasVh7RTpk4eniJ2HFwNx0K-wg")
 GEMINI_API_KEY = os.environ.get("AQ.Ab8RN6JWEMuS1iUQeN3yRYCz-vBcj2P8EIzL6gEqsVvIZxQXrg")
 
@@ -27,15 +27,12 @@ DATA_FILE = "library.json"
 
 bot = telebot.TeleBot(TOKEN)
 
-# إعداد عميل جيميناي
-client = None
+# تهيئة مكتبة الذكاء الاصطناعي
 if GEMINI_API_KEY:
-    try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-    except Exception as e:
-        print(f"Error initializing Gemini client: {e}")
+    genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-# 3. إدارة الملفات والبيانات
+# 3. إدارة الملفات
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -51,7 +48,7 @@ def save_data(data):
 
 library = load_data()
 
-# 4. أوامر البوت واستقبال الملفات
+# 4. أوامر البوت
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     welcome_text = (
@@ -110,10 +107,6 @@ def handle_query(message):
         bot.reply_to(message, "المكتبة فارغة حالياً. يرجى رفع بعض الكتب أولاً.")
         return
 
-    if not client:
-        bot.reply_to(message, "خطأ: لم يتم ضبط مفتاح GEMINI_API_KEY بشكل صحيح.")
-        return
-
     bot.send_chat_action(message.chat.id, 'typing')
 
     context_str = ""
@@ -133,15 +126,12 @@ def handle_query(message):
 {query}
 """
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-        )
+        response = model.generate_content(prompt)
         bot.reply_to(message, response.text)
     except Exception as e:
         bot.reply_to(message, f"حدث خطأ في توليد الإجابة: {e}")
 
-# 5. تشغيل السيرفر والبوت
+# 5. التشغيل الصريح والآمن
 if __name__ == "__main__":
     t = Thread(target=run)
     t.daemon = True
@@ -152,5 +142,4 @@ if __name__ == "__main__":
     except Exception:
         pass
         
-    print("البوت يعمل الآن ومستعد لاستقبال الرسائل...")
     bot.infinity_polling(timeout=20, long_polling_timeout=10)
