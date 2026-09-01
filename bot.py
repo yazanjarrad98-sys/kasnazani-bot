@@ -16,7 +16,7 @@ def home():
 
 def run():
     port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port, threaded=True)
+    app.run(host='0.0.0.0', port=port)
 
 def keep_alive():
     t = Thread(target=run)
@@ -35,7 +35,7 @@ DATA_FILE = "library.json"
 bot = telebot.TeleBot(TOKEN)
 genai.configure(api_key=GEMINI_API_KEY)
 
-model = genai.GenerativeModel('gemini-3.6-flash')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # 3. إدارة الملفات والبيانات
 def load_data():
@@ -154,4 +154,4 @@ if _name_ == "_main_":
         time.sleep(1)
     except Exception:
         pass
-    bot.infinity_polling(timeout=10, long_polling_timeout=5)
+    bot.infinity_polling()
