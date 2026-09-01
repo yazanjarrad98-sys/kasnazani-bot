@@ -9,7 +9,7 @@ from pypdf import PdfReader
 import google.generativeai as genai
 
 # 1. خادم Flask لإبقاء البوت نشطاً على Render
-app = Flask(__name__)
+app = Flask(_name_)
 
 @app.route('/')
 def home():
@@ -27,14 +27,15 @@ def keep_alive():
 keep_alive()
 
 # 2. المفاتيح وإعدادات النظام
-TOKEN = os.environ.get("BOT_TOKEN","8934001695:AAEdzd-JNyasVh7RTpk4eniJ2HFwNx0K-wg")
+TOKEN = os.environ.get("BOT_TOKEN", "8934001695:AAEdzd-JNyasVh7RTpk4eniJ2HFwNx0K-wg")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6JWEMuS1iUQeN3yRYCz-vBcj2P8EIzL6gEqsVvIZxQXrg")
 
 ADMIN_ID = 8032030029
 DATA_FILE = "library.json"
 
 bot = telebot.TeleBot(TOKEN)
-ai_client = genai.Client(api_key=GEMINI_API_KEY)
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # 3. إدارة الملفات والبيانات
 def load_data():
@@ -56,10 +57,7 @@ library = load_data()
 def ask_gemini_with_retry(prompt, retries=3, delay=5):
     for attempt in range(retries):
         try:
-            response = ai_client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=prompt,
-            )
+            response = model.generate_content(prompt)
             return response.text
         except Exception as e:
             if attempt < retries - 1:
