@@ -5,9 +5,9 @@ from threading import Thread
 from flask import Flask
 import telebot
 from pypdf import PdfReader
-import google.generativeai as genai
+from google import genai
 
-# 1. خادم Flask
+# 1. خادم Flask لإبقاء الخدمة نشطة
 app = Flask(__name__)
 
 @app.route('/')
@@ -18,7 +18,7 @@ def run():
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
-# 2. إعدادات التليجرام وجوجل
+# 2. إعداد مفاتيح التلغرام وجوجل
 TOKEN = os.environ.get("8934001695:AAEdzd-JNyasVh7RTpk4eniJ2HFwNx0K-wg")
 GEMINI_API_KEY = os.environ.get("AQ.Ab8RN6JWEMuS1iUQeN3yRYCz-vBcj2P8EIzL6gEqsVvIZxQXrg")
 
@@ -26,10 +26,9 @@ ADMIN_ID = 8032030029
 DATA_FILE = "library.json"
 
 bot = telebot.TeleBot(TOKEN)
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+client = genai.Client(api_key=GEMINI_API_KEY)
 
-# 3. إدارة البيانات
+# 3. إدارة الملفات والبيانات
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -45,7 +44,7 @@ def save_data(data):
 
 library = load_data()
 
-# 4. معالجة الرسائل
+# 4. أوامر البوت واستقبال الملفات
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     welcome_text = (
@@ -122,12 +121,15 @@ def handle_query(message):
 {query}
 """
     try:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
         bot.reply_to(message, response.text)
     except Exception as e:
         bot.reply_to(message, f"حدث خطأ في توليد الإجابة: {e}")
 
-# 5. تشغيل السيرفر والبوت في مسارات مستقلة
+# 5. تشغيل خادم Flask والبوت
 if __name__ == "__main__":
     t = Thread(target=run)
     t.daemon = True
