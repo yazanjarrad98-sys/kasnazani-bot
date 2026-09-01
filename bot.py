@@ -26,7 +26,14 @@ ADMIN_ID = 8032030029
 DATA_FILE = "library.json"
 
 bot = telebot.TeleBot(TOKEN)
-client = genai.Client(api_key=GEMINI_API_KEY)
+
+# إعداد عميل جيميناي
+client = None
+if GEMINI_API_KEY:
+    try:
+        client = genai.Client(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        print(f"Error initializing Gemini client: {e}")
 
 # 3. إدارة الملفات والبيانات
 def load_data():
@@ -81,7 +88,8 @@ def handle_document(message):
             if text:
                 chunks.append({"page": i + 1, "text": text})
         
-        os.remove(temp_filename)
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
 
         if not chunks:
             bot.edit_message_text("لم يتم العثور على نصوص قابلة للقراءة في الملف.", chat_id=message.chat.id, message_id=msg.message_id)
@@ -100,6 +108,10 @@ def handle_query(message):
     query = message.text
     if not library:
         bot.reply_to(message, "المكتبة فارغة حالياً. يرجى رفع بعض الكتب أولاً.")
+        return
+
+    if not client:
+        bot.reply_to(message, "خطأ: لم يتم ضبط مفتاح GEMINI_API_KEY بشكل صحيح.")
         return
 
     bot.send_chat_action(message.chat.id, 'typing')
@@ -129,17 +141,16 @@ def handle_query(message):
     except Exception as e:
         bot.reply_to(message, f"حدث خطأ في توليد الإجابة: {e}")
 
-# 5. تشغيل خادم Flask والبوت
+# 5. تشغيل السيرفر والبوت
 if __name__ == "__main__":
     t = Thread(target=run)
     t.daemon = True
     t.start()
     
-    time.sleep(1)
     try:
         bot.remove_webhook()
     except Exception:
         pass
         
     print("البوت يعمل الآن ومستعد لاستقبال الرسائل...")
-    bot.infinity_polling(timeout=10, long_polling_timeout=5)
+    bot.infinity_polling(timeout=20, long_polling_timeout=10)
