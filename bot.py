@@ -168,7 +168,7 @@ def delete_book(message):
 
 
 # =========================================================
-# رفع ملفات PDF (معدّل للعمل مباشرة في الذاكرة)
+# رفع ملفات PDF (في الذاكرة مباشرة)
 # =========================================================
 
 @bot.message_handler(content_types=['document'])
@@ -188,7 +188,6 @@ def handle_document(message):
         file_info = bot.get_file(message.document.file_id)
         downloaded_file = bot.download_file(file_info.file_path)
 
-        # قراءة الملف مباشرة من الذاكرة
         pdf_stream = io.BytesIO(downloaded_file)
         reader = PdfReader(pdf_stream)
 
@@ -304,7 +303,7 @@ def search_relevant_chunks(query, max_chunks=4, max_text_length=2500):
 
 
 # =========================================================
-# توليد الإجابة بواسطة Groq (مع دعم عدة موديلات احتياطية)
+# توليد الإجابة بواسطة Groq (الموديلات الحديثة)
 # =========================================================
 
 def generate_answer_with_groq(query, context):
@@ -334,7 +333,8 @@ def generate_answer_with_groq(query, context):
 
     models = [
         "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant",
+        "llama3-8b-8192",
+        "llama3-70b-8192",
         "mixtral-8x7b-32768"
     ]
 
